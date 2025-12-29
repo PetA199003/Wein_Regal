@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>🍷 Weinregal-Verwaltung</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="container">
+                <h1><i class="fas fa-wine-bottle"></i> Weinregal</h1>
+                <div class="header-actions">
+                    <button @click="showStats = true" class="btn-icon" title="Statistiken">
+                        <i class="fas fa-chart-bar"></i>
+                    </button>
+                    <button @click="showSettings = true" class="btn-icon" title="Einstellungen">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Hauptnavigation -->
+        <nav class="main-nav">
+            <button
+                @click="currentView = 'inventory'"
+                :class="{ active: currentView === 'inventory' }"
+                class="nav-btn">
+                <i class="fas fa-list"></i>
+                <span>Inventar</span>
+            </button>
+            <button
+                @click="currentView = 'rack'"
+                :class="{ active: currentView === 'rack' }"
+                class="nav-btn">
+                <i class="fas fa-th"></i>
+                <span>Regal</span>
+            </button>
+            <button
+                @click="showAddWine = true"
+                class="nav-btn nav-btn-primary">
+                <i class="fas fa-plus-circle"></i>
+                <span>Wein hinzufügen</span>
+            </button>
+        </nav>
+
+        <!-- Inventaransicht -->
+        <main class="main-content" v-if="currentView === 'inventory'">
+            <div class="container">
+                <!-- Suchleiste und Filter -->
+                <div class="search-bar">
+                    <div class="search-input-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input
+                            v-model="searchQuery"
+                            @input="searchWines"
+                            type="text"
+                            placeholder="Wein suchen...">
+                    </div>
+                    <button @click="showFilters = !showFilters" class="btn-filter">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                </div>
+
+                <!-- Filter -->
+                <div v-if="showFilters" class="filters">
+                    <select v-model="filterType" @change="applyFilters" class="filter-select">
+                        <option value="">Alle Weintypen</option>
+                        <option value="Rot">Rotwein</option>
+                        <option value="Weiß">Weißwein</option>
+                        <option value="Rosé">Roséwein</option>
+                        <option value="Schaumwein">Schaumwein</option>
+                        <option value="Dessertwein">Dessertwein</option>
+                    </select>
+                    <select v-model="filterRating" @change="applyFilters" class="filter-select">
+                        <option value="">Alle Bewertungen</option>
+                        <option value="4">⭐ 4+ Sterne</option>
+                        <option value="3">⭐ 3+ Sterne</option>
+                        <option value="2">⭐ 2+ Sterne</option>
+                    </select>
+                </div>
+
+                <!-- Weinliste -->
+                <div class="wine-list">
+                    <div v-if="loading" class="loading">
+                        <i class="fas fa-spinner fa-spin"></i> Lädt...
+                    </div>
+                    <div v-else-if="filteredWines.length === 0" class="empty-state">
+                        <i class="fas fa-wine-bottle"></i>
+                        <p>Keine Weine gefunden</p>
+                    </div>
+                    <div v-else v-for="wine in filteredWines" :key="wine.id" class="wine-card">
+                        <div class="wine-card-header" @click="selectWine(wine)">
+                            <div class="wine-info">
+                                <h3>{{ wine.name }}</h3>
+                                <p class="wine-producer">{{ wine.producer }}</p>
+                                <div class="wine-meta">
+                                    <span class="wine-type" :class="'type-' + wine.wine_type.toLowerCase()">
+                                        {{ wine.wine_type }}
+                                    </span>
+                                    <span v-if="wine.vintage_year" class="wine-year">{{ wine.vintage_year }}</span>
+                                    <span class="wine-quantity">{{ wine.quantity }} Fl.</span>
+                                </div>
+                            </div>
+                            <div class="wine-rating">
+                                <div v-if="wine.rating" class="rating-stars">
+                                    {{ formatRating(wine.rating) }}
+                                </div>
+                                <button
+                                    @click.stop="highlightWine(wine.id)"
+                                    class="btn-highlight"
+                                    title="Position anzeigen">
+                                    <i class="fas fa-lightbulb"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div v-if="wine.positions" class="wine-positions">
+                            <i class="fas fa-map-marker-alt"></i>
+                            {{ wine.positions }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Regalansicht -->
+        <main class="main-content" v-if="currentView === 'rack'">
+            <div class="container">
+                <div v-if="loadingRacks" class="loading">
+                    <i class="fas fa-spinner fa-spin"></i> Lädt Regalansicht...
+                </div>
+                <div v-else>
+                    <div v-for="rack in racks" :key="rack.id" class="rack-container">
+                        <h2>{{ rack.name }}</h2>
+                        <p class="rack-description">{{ rack.description }}</p>
+                        <div class="rack-grid" :style="{ gridTemplateColumns: `repeat(${rack.columns}, 1fr)` }">
+                            <div
+                                v-for="pos in getRackPositions(rack)"
+                                :key="pos.key"
+                                :class="['rack-cell', pos.wine_id ? 'occupied' : 'empty']"
+                                @click="handleCellClick(pos)">
+                                <div v-if="pos.wine_id" class="cell-content">
+                                    <div class="cell-wine-name">{{ pos.wine_name }}</div>
+                                    <div class="cell-wine-year">{{ pos.vintage_year }}</div>
+                                </div>
+                                <div v-else class="cell-empty">
+                                    <i class="fas fa-plus"></i>
+                                </div>
+                                <div class="cell-label">{{ pos.row_number }}-{{ pos.column_number }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Modal: Wein hinzufügen/bearbeiten -->
+        <div v-if="showAddWine" class="modal" @click.self="showAddWine = false">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>{{ editingWine ? 'Wein bearbeiten' : 'Neuer Wein' }}</h2>
+                    <button @click="showAddWine = false" class="btn-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form @submit.prevent="saveWine" class="wine-form">
+                    <div class="form-group">
+                        <label>Name *</label>
+                        <input v-model="wineForm.name" type="text" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Produzent</label>
+                            <input v-model="wineForm.producer" type="text">
+                        </div>
+                        <div class="form-group">
+                            <label>Jahrgang</label>
+                            <input v-model="wineForm.vintage_year" type="number" min="1900" max="2100">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Weintyp *</label>
+                            <select v-model="wineForm.wine_type" required>
+                                <option value="Rot">Rotwein</option>
+                                <option value="Weiß">Weißwein</option>
+                                <option value="Rosé">Roséwein</option>
+                                <option value="Schaumwein">Schaumwein</option>
+                                <option value="Dessertwein">Dessertwein</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Rebsorte</label>
+                            <input v-model="wineForm.grape_variety" type="text">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Region</label>
+                            <input v-model="wineForm.region" type="text">
+                        </div>
+                        <div class="form-group">
+                            <label>Land</label>
+                            <input v-model="wineForm.country" type="text">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Kaufort</label>
+                            <input v-model="wineForm.purchase_location" type="text">
+                        </div>
+                        <div class="form-group">
+                            <label>Kaufdatum</label>
+                            <input v-model="wineForm.purchase_date" type="date">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Kaufpreis (€)</label>
+                            <input v-model="wineForm.purchase_price" type="number" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Anzahl Flaschen</label>
+                            <input v-model="wineForm.quantity" type="number" min="1" value="1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Bewertung (0-5 Sterne)</label>
+                        <input v-model="wineForm.rating" type="number" step="0.5" min="0" max="5">
+                    </div>
+                    <div class="form-group">
+                        <label>Notizen</label>
+                        <textarea v-model="wineForm.notes" rows="3"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" @click="showAddWine = false" class="btn btn-secondary">
+                            Abbrechen
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Weindetails -->
+        <div v-if="selectedWine" class="modal" @click.self="selectedWine = null">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>{{ selectedWine.name }}</h2>
+                    <button @click="selectedWine = null" class="btn-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="wine-details">
+                    <div class="detail-section">
+                        <h3>Allgemeine Informationen</h3>
+                        <div class="detail-grid">
+                            <div><strong>Produzent:</strong> {{ selectedWine.producer || '-' }}</div>
+                            <div><strong>Jahrgang:</strong> {{ selectedWine.vintage_year || '-' }}</div>
+                            <div><strong>Typ:</strong> {{ selectedWine.wine_type }}</div>
+                            <div><strong>Rebsorte:</strong> {{ selectedWine.grape_variety || '-' }}</div>
+                            <div><strong>Region:</strong> {{ selectedWine.region || '-' }}</div>
+                            <div><strong>Land:</strong> {{ selectedWine.country || '-' }}</div>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <h3>Kauf & Lagerung</h3>
+                        <div class="detail-grid">
+                            <div><strong>Kaufort:</strong> {{ selectedWine.purchase_location || '-' }}</div>
+                            <div><strong>Kaufdatum:</strong> {{ formatDate(selectedWine.purchase_date) }}</div>
+                            <div><strong>Kaufpreis:</strong> {{ formatPrice(selectedWine.purchase_price) }}</div>
+                            <div><strong>Anzahl:</strong> {{ selectedWine.quantity }} Flaschen</div>
+                        </div>
+                    </div>
+                    <div v-if="selectedWine.positions && selectedWine.positions.length > 0" class="detail-section">
+                        <h3>Positionen im Regal</h3>
+                        <div v-for="pos in selectedWine.positions" :key="pos.id" class="position-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            {{ pos.rack_name }}: Reihe {{ pos.row_number }}, Spalte {{ pos.column_number }}
+                        </div>
+                        <button @click="highlightWine(selectedWine.id)" class="btn btn-primary mt-2">
+                            <i class="fas fa-lightbulb"></i> Position anzeigen (LED)
+                        </button>
+                    </div>
+                    <div v-if="selectedWine.rating" class="detail-section">
+                        <h3>Bewertung</h3>
+                        <div class="rating-display">{{ formatRating(selectedWine.rating) }}</div>
+                    </div>
+                    <div v-if="selectedWine.notes" class="detail-section">
+                        <h3>Notizen</h3>
+                        <p>{{ selectedWine.notes }}</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button @click="editWine(selectedWine)" class="btn btn-secondary">
+                        <i class="fas fa-edit"></i> Bearbeiten
+                    </button>
+                    <button @click="deleteWine(selectedWine.id)" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Löschen
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Statistiken -->
+        <div v-if="showStats" class="modal" @click.self="showStats = false">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Statistiken</h2>
+                    <button @click="showStats = false" class="btn-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div v-if="stats" class="stats-container">
+                    <div class="stat-card">
+                        <i class="fas fa-wine-bottle"></i>
+                        <div class="stat-value">{{ stats.total_wines }}</div>
+                        <div class="stat-label">Verschiedene Weine</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-layer-group"></i>
+                        <div class="stat-value">{{ stats.total_bottles }}</div>
+                        <div class="stat-label">Gesamte Flaschen</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-euro-sign"></i>
+                        <div class="stat-value">{{ formatPrice(stats.total_value) }}</div>
+                        <div class="stat-label">Gesamtwert</div>
+                    </div>
+                    <div class="stats-section">
+                        <h3>Nach Weintyp</h3>
+                        <div v-for="type in stats.by_type" :key="type.wine_type" class="type-stat">
+                            <span>{{ type.wine_type }}:</span>
+                            <span>{{ type.count }} Weine ({{ type.bottles }} Flaschen)</span>
+                        </div>
+                    </div>
+                    <div v-if="stats.top_rated.length > 0" class="stats-section">
+                        <h3>Top bewertete Weine</h3>
+                        <div v-for="wine in stats.top_rated" :key="wine.id" class="top-wine">
+                            <span>{{ wine.name }}</span>
+                            <span>{{ formatRating(wine.rating) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast-Benachrichtigungen -->
+        <div class="toast-container">
+            <div v-for="toast in toasts" :key="toast.id" :class="['toast', 'toast-' + toast.type]">
+                <i :class="['fas', toast.icon]"></i>
+                {{ toast.message }}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
