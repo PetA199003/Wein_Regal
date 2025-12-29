@@ -74,14 +74,14 @@ async function highlightWinePosition(wineId) {
 
         const results = [];
         for (const position of positions) {
-            const topic = position.mqtt_topic || `wine/rack/${position.rack_id}/row/${position.row_number}/col/${position.column_number}`;
+            const topic = position.mqtt_topic || `wine/rack/${position.rack_id}/row/${position.position_row}/col/${position.position_column}`;
             const payload = JSON.stringify({
                 action: 'highlight',
                 wine_id: wineId,
                 position: {
                     rack: position.rack_name,
-                    row: position.row_number,
-                    column: position.column_number
+                    row: position.position_row,
+                    column: position.position_column
                 },
                 led_address: position.led_address,
                 timestamp: new Date().toISOString()

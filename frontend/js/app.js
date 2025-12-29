@@ -177,7 +177,7 @@ createApp({
             for (let row = 1; row <= rack.row_count; row++) {
                 for (let col = 1; col <= rack.column_count; col++) {
                     const existingPos = rack.positions?.find(
-                        p => p.row_number === row && p.column_number === col
+                        p => p.position_row === row && p.position_column === col
                     );
 
                     if (existingPos) {
@@ -188,8 +188,8 @@ createApp({
                     } else {
                         positions.push({
                             rack_id: rack.id,
-                            row_number: row,
-                            column_number: col,
+                            position_row: row,
+                            position_column: col,
                             wine_id: null,
                             key: `${rack.id}-${row}-${col}`
                         });

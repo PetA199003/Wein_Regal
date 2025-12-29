@@ -52,8 +52,8 @@ CREATE TABLE IF NOT EXISTS rack_positions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     rack_id INT NOT NULL,
     wine_id INT,
-    row_number INT NOT NULL,
-    column_number INT NOT NULL,
+    position_row INT NOT NULL,
+    position_column INT NOT NULL,
     position_label VARCHAR(50),
     mqtt_topic VARCHAR(255),
     led_address VARCHAR(100),
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS rack_positions (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (rack_id) REFERENCES racks(id) ON DELETE CASCADE,
     FOREIGN KEY (wine_id) REFERENCES wines(id) ON DELETE SET NULL,
-    UNIQUE KEY unique_position (rack_id, row_number, column_number),
+    UNIQUE KEY unique_position (rack_id, position_row, position_column),
     INDEX idx_wine_id (wine_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -130,7 +130,7 @@ SELECT
     w.quantity,
     w.rating,
     w.purchase_price,
-    GROUP_CONCAT(CONCAT(r.name, ' - ', 'Reihe ', rp.row_number, ', Spalte ', rp.column_number) SEPARATOR '; ') AS positions
+    GROUP_CONCAT(CONCAT(r.name, ' - ', 'Reihe ', rp.position_row, ', Spalte ', rp.position_column) SEPARATOR '; ') AS positions
 FROM wines w
 LEFT JOIN rack_positions rp ON w.id = rp.wine_id
 LEFT JOIN racks r ON rp.rack_id = r.id

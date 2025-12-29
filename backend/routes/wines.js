@@ -175,7 +175,7 @@ router.get('/racks/overview', async (req, res) => {
                  FROM rack_positions rp
                  LEFT JOIN wines w ON rp.wine_id = w.id
                  WHERE rp.rack_id = ?
-                 ORDER BY rp.row_number, rp.column_number`,
+                 ORDER BY rp.position_row, rp.position_column`,
                 [rack.id]
             );
 
@@ -194,13 +194,13 @@ router.get('/racks/overview', async (req, res) => {
 // Position zuweisen
 router.post('/positions', async (req, res) => {
     try {
-        const { rack_id, wine_id, row_number, column_number, position_label, mqtt_topic, led_address } = req.body;
+        const { rack_id, wine_id, position_row, position_column, position_label, mqtt_topic, led_address } = req.body;
 
         const [result] = await pool.query(
-            `INSERT INTO rack_positions (rack_id, wine_id, row_number, column_number, position_label, mqtt_topic, led_address)
+            `INSERT INTO rack_positions (rack_id, wine_id, position_row, position_column, position_label, mqtt_topic, led_address)
              VALUES (?, ?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE wine_id = ?, position_label = ?, mqtt_topic = ?, led_address = ?`,
-            [rack_id, wine_id, row_number, column_number, position_label, mqtt_topic, led_address,
+            [rack_id, wine_id, position_row, position_column, position_label, mqtt_topic, led_address,
              wine_id, position_label, mqtt_topic, led_address]
         );
 
