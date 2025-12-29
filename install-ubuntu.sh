@@ -95,21 +95,66 @@ configure_database() {
         exit 1
     fi
 
-    # MySQL-Befehle ausführen
-    mysql -u root <<EOF
--- Benutzer erstellen
-CREATE USER IF NOT EXISTS 'wine_admin'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
+    # Prüfen ob MySQL-Root ein Passwort benötigt
+    if mysql -u root -e "SELECT 1;" &>/dev/null; then
+        MYSQL_ROOT_CMD="mysql -u root"
+    else
+        print_info "MySQL-Root benötigt ein Passwort"
+        MYSQL_ROOT_CMD="sudo mysql"
+    fi
 
--- Datenbank erstellen und Rechte vergeben
-CREATE DATABASE IF NOT EXISTS wine_inventory CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    # MySQL-Befehle ausführen
+    print_info "Erstelle Datenbank und Benutzer..."
+    $MYSQL_ROOT_CMD <<EOF
+-- Benutzer löschen falls vorhanden (für Neuinstallation)
+DROP USER IF EXISTS 'wine_admin'@'localhost';
+
+-- Benutzer mit expliziter Authentifizierungsmethode erstellen
+CREATE USER 'wine_admin'@'localhost' IDENTIFIED WITH mysql_native_password BY '$DB_PASSWORD';
+
+-- Datenbank erstellen
+DROP DATABASE IF EXISTS wine_inventory;
+CREATE DATABASE wine_inventory CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Rechte vergeben
 GRANT ALL PRIVILEGES ON wine_inventory.* TO 'wine_admin'@'localhost';
 FLUSH PRIVILEGES;
 EOF
 
-    # Schema importieren
+    if [ $? -ne 0 ]; then
+        print_error "Fehler beim Erstellen der Datenbank"
+        exit 1
+    fi
+
+    print_success "Datenbank und Benutzer erstellt"
+
+    # Schema importieren mit sicherer Passwortübergabe
     if [ -f "database/schema.sql" ]; then
-        mysql -u wine_admin -p"$DB_PASSWORD" wine_inventory < database/schema.sql
-        print_success "Datenbankschema importiert"
+        print_info "Importiere Datenbankschema..."
+
+        # Temporäre MySQL-Konfigurationsdatei erstellen
+        MYSQL_CNF=$(mktemp)
+        cat > "$MYSQL_CNF" <<EOF
+[client]
+user=wine_admin
+password=$DB_PASSWORD
+host=localhost
+EOF
+        chmod 600 "$MYSQL_CNF"
+
+        # Schema importieren
+        mysql --defaults-extra-file="$MYSQL_CNF" wine_inventory < database/schema.sql
+
+        if [ $? -eq 0 ]; then
+            print_success "Datenbankschema erfolgreich importiert"
+        else
+            print_error "Fehler beim Importieren des Schemas"
+            rm -f "$MYSQL_CNF"
+            exit 1
+        fi
+
+        # Temporäre Datei löschen
+        rm -f "$MYSQL_CNF"
     else
         print_warning "Datenbankschema-Datei nicht gefunden"
     fi
