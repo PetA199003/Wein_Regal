@@ -186,8 +186,19 @@ EOF
 # NPM-Pakete installieren
 install_dependencies() {
     print_info "Node.js-Abhängigkeiten werden installiert..."
+
+    # npm-Pfad finden
+    NPM_CMD=$(which npm 2>/dev/null || find /usr -name npm 2>/dev/null | head -1 || find /opt -name npm 2>/dev/null | head -1)
+
+    if [ -z "$NPM_CMD" ]; then
+        print_error "npm nicht gefunden. Bitte Node.js neu installieren."
+        exit 1
+    fi
+
+    print_info "Verwende npm: $NPM_CMD"
+
     cd backend
-    npm install --production
+    $NPM_CMD install --production
     cd ..
     print_success "Abhängigkeiten installiert"
 }
@@ -198,6 +209,16 @@ create_systemd_service() {
 
     INSTALL_DIR=$(pwd)
     CURRENT_USER=${SUDO_USER:-$USER}
+
+    # Node.js-Pfad finden
+    NODE_PATH=$(which node 2>/dev/null || find /usr -name node -type f 2>/dev/null | head -1 || find /opt -name node -type f 2>/dev/null | head -1)
+
+    if [ -z "$NODE_PATH" ]; then
+        NODE_PATH="/usr/bin/node"
+        print_warning "Node-Pfad nicht gefunden, verwende Standard: $NODE_PATH"
+    else
+        print_info "Node.js gefunden: $NODE_PATH"
+    fi
 
     cat > /etc/systemd/system/wine-inventory.service <<EOF
 [Unit]
@@ -210,7 +231,7 @@ User=$CURRENT_USER
 WorkingDirectory=$INSTALL_DIR/backend
 Environment="NODE_ENV=production"
 EnvironmentFile=$INSTALL_DIR/.env
-ExecStart=/usr/bin/node server.js
+ExecStart=$NODE_PATH server.js
 Restart=always
 RestartSec=10
 
