@@ -174,8 +174,8 @@ createApp({
             const positions = [];
 
             // Alle möglichen Positionen generieren
-            for (let row = 1; row <= rack.rows; row++) {
-                for (let col = 1; col <= rack.columns; col++) {
+            for (let row = 1; row <= rack.row_count; row++) {
+                for (let col = 1; col <= rack.column_count; col++) {
                     const existingPos = rack.positions?.find(
                         p => p.row_number === row && p.column_number === col
                     );

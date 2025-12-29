@@ -139,7 +139,7 @@
                     <div v-for="rack in racks" :key="rack.id" class="rack-container">
                         <h2>{{ rack.name }}</h2>
                         <p class="rack-description">{{ rack.description }}</p>
-                        <div class="rack-grid" :style="{ gridTemplateColumns: `repeat(${rack.columns}, 1fr)` }">
+                        <div class="rack-grid" :style="{ gridTemplateColumns: `repeat(${rack.column_count}, 1fr)` }">
                             <div
                                 v-for="pos in getRackPositions(rack)"
                                 :key="pos.key"

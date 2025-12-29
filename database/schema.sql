@@ -8,8 +8,8 @@ USE wine_inventory;
 CREATE TABLE IF NOT EXISTS racks (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    rows INT NOT NULL DEFAULT 1,
-    columns INT NOT NULL DEFAULT 1,
+    row_count INT NOT NULL DEFAULT 1,
+    column_count INT NOT NULL DEFAULT 1,
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS mqtt_config (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Beispieldaten einfügen
-INSERT INTO racks (name, rows, columns, description) VALUES
+INSERT INTO racks (name, row_count, column_count, description) VALUES
 ('Hauptregal', 5, 6, 'Hauptweinregal im Keller'),
 ('Kleines Regal', 3, 4, 'Zusätzliches Regal');
 
