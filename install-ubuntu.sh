@@ -187,11 +187,32 @@ EOF
 install_dependencies() {
     print_info "Node.js-Abhängigkeiten werden installiert..."
 
-    # npm-Pfad finden
-    NPM_CMD=$(which npm 2>/dev/null || find /usr -name npm 2>/dev/null | head -1 || find /opt -name npm 2>/dev/null | head -1)
+    # npm-Pfad finden - verschiedene Strategien
+    NPM_CMD=""
+
+    # Strategie 1: which als normaler Benutzer
+    if [ -n "$SUDO_USER" ]; then
+        NPM_CMD=$(su - "$SUDO_USER" -c "which npm 2>/dev/null" || echo "")
+    fi
+
+    # Strategie 2: which als root
+    if [ -z "$NPM_CMD" ]; then
+        NPM_CMD=$(which npm 2>/dev/null || echo "")
+    fi
+
+    # Strategie 3: Bekannte Pfade durchsuchen
+    if [ -z "$NPM_CMD" ]; then
+        for path in /opt/node*/bin/npm /usr/bin/npm /usr/local/bin/npm; do
+            if [ -x "$path" ]; then
+                NPM_CMD="$path"
+                break
+            fi
+        done
+    fi
 
     if [ -z "$NPM_CMD" ]; then
-        print_error "npm nicht gefunden. Bitte Node.js neu installieren."
+        print_error "npm nicht gefunden."
+        print_info "Versuche manuelle Installation mit: /opt/node22/bin/npm install --production"
         exit 1
     fi
 
@@ -210,8 +231,28 @@ create_systemd_service() {
     INSTALL_DIR=$(pwd)
     CURRENT_USER=${SUDO_USER:-$USER}
 
-    # Node.js-Pfad finden
-    NODE_PATH=$(which node 2>/dev/null || find /usr -name node -type f 2>/dev/null | head -1 || find /opt -name node -type f 2>/dev/null | head -1)
+    # Node.js-Pfad finden - verschiedene Strategien
+    NODE_PATH=""
+
+    # Strategie 1: which als normaler Benutzer
+    if [ -n "$SUDO_USER" ]; then
+        NODE_PATH=$(su - "$SUDO_USER" -c "which node 2>/dev/null" || echo "")
+    fi
+
+    # Strategie 2: which als root
+    if [ -z "$NODE_PATH" ]; then
+        NODE_PATH=$(which node 2>/dev/null || echo "")
+    fi
+
+    # Strategie 3: Bekannte Pfade durchsuchen
+    if [ -z "$NODE_PATH" ]; then
+        for path in /opt/node*/bin/node /usr/bin/node /usr/local/bin/node; do
+            if [ -x "$path" ]; then
+                NODE_PATH="$path"
+                break
+            fi
+        done
+    fi
 
     if [ -z "$NODE_PATH" ]; then
         NODE_PATH="/usr/bin/node"
